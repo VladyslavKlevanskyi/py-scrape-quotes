@@ -1,10 +1,12 @@
 import csv
 import logging
+import re
 import sys
 from dataclasses import dataclass, fields, astuple
 from datetime import datetime
 from urllib.parse import urljoin
 import requests
+import unicodedata
 from bs4 import BeautifulSoup, Tag
 
 BASE_URL = "https://quotes.toscrape.com/"
@@ -17,7 +19,15 @@ class Quote:
     tags: list[str]
 
 
+@dataclass
+class Author:
+    name: str
+    biography: str
+
+
 QUOTE_FIELDS = [field.name for field in fields(Quote)]
+AUTHOR_FIELDS = [field.name for field in fields(Author)]
+authors_list = []
 
 
 logging.basicConfig(
@@ -31,10 +41,20 @@ logging.basicConfig(
 
 
 def parse_single_quote(quote_soup: Tag) -> Quote:
+    author_name = quote_soup.select_one(".author").text
+    if author_name not in authors_list:
+        authors_list.append(author_name)
     return Quote(
         text=quote_soup.select_one(".text").text,
-        author=quote_soup.select_one(".author").text,
+        author=author_name,
         tags=quote_soup.select_one(".tags").text.split()[1:]
+    )
+
+
+def get_single_author(name: str, biography: str) -> Author:
+    return Author(
+        name=name,
+        biography=biography,
     )
 
 
@@ -68,6 +88,7 @@ def get_all_pages_quotes() -> [Quote]:
 
             # Adding quotes from a new page
             all_quotes.extend(get_single_page_quotes(next_page_soup))
+            # all_authors.extend(get_single_page_quotes(next_page_soup)[1])
 
             # next button searching
             next_element = next_page_soup.select_one(".next")
@@ -89,9 +110,46 @@ def write_quotes_to_csv(output_csv_path: str) -> None:
         writer.writerows([astuple(quote) for quote in quotes])
 
 
+def format_name(input_name: str) -> str:
+    # Removing diacritics
+    normalized_name = unicodedata.normalize("NFD", input_name)
+    name_without_accents = "".join(
+        char for char in normalized_name if unicodedata.category(char) != "Mn"
+    )
+    # Replace spaces and dots with hyphens
+    formatted_name = re.sub(
+            r"[.\s]+", "-", name_without_accents
+        ).replace("'", "").rstrip("-")
+    return formatted_name
+
+
+def get_all_authors_biography(authors: list) -> [Author]:
+    returning_authors_list = []
+    for name in authors:
+        refactored_name = format_name(name)
+        author_url = urljoin(BASE_URL, f"/author/{refactored_name}/")
+        page_text = requests.get(author_url).content
+        first_page_soup = BeautifulSoup(page_text, "html.parser")
+        biography = first_page_soup.select_one(
+            ".author-description"
+        ).text.strip()
+        returning_authors_list.append(get_single_author(name, biography))
+
+    return returning_authors_list
+
+
+def write_authors_to_csv(output_csv_path: str) -> None:
+    authors = get_all_authors_biography(authors_list)
+    with open(output_csv_path, "w", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(AUTHOR_FIELDS)
+        writer.writerows([astuple(author) for author in authors])
+
+
 def main(output_csv_path: str) -> None:
     write_quotes_to_csv(output_csv_path)
 
 
 if __name__ == "__main__":
     main("quotes.csv")
+    write_authors_to_csv("authors.csv")
