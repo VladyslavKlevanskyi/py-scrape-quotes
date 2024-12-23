@@ -69,36 +69,35 @@ def get_all_pages_quotes() -> [Quote]:
     logging.info(f"{time} - Start parsing quotes")
 
     page_text = requests.get(BASE_URL).content
-    first_page_soup = BeautifulSoup(page_text, "html.parser")
+    page_soup = BeautifulSoup(page_text, "html.parser")
 
-    all_quotes = get_single_page_quotes(first_page_soup)
+    all_quotes = get_single_page_quotes(page_soup)
 
     # next button searching
-    next_element = first_page_soup.select_one(".next")
-    next_page_number = next_element.a["href"].split("/")[-2]
+    next_element = page_soup.select_one(".next")
     while next_element is not None:
-        try:
-            # logging
-            time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            logging.info(f"{time} - Start parsing page #{next_page_number}")
+        # Checking the existence of an element and the href attribute
+        if next_element and next_element.a and "href" in next_element.a.attrs:
+            next_href = next_element.a["href"]
+            # Using a Regular Expression to Extract a Number from a URL
+            match = re.search(r"/page/(\d+)/", next_href)
+            if match:
+                next_page_number = match.group(1)
 
-            next_page_url = urljoin(BASE_URL, f"/page/{next_page_number}/")
-            next_page_text = requests.get(next_page_url).content
-            next_page_soup = BeautifulSoup(next_page_text, "html.parser")
+                # logging
+                time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                logging.info(f"{time} - Start parsing page #{next_page_number}")
 
-            # Adding quotes from a new page
-            all_quotes.extend(get_single_page_quotes(next_page_soup))
-            # all_authors.extend(get_single_page_quotes(next_page_soup)[1])
+                next_page_url = urljoin(BASE_URL, f"/page/{next_page_number}/")
+                next_page_text = requests.get(next_page_url).content
+                next_page_soup = BeautifulSoup(next_page_text, "html.parser")
 
-            # next button searching
-            next_element = next_page_soup.select_one(".next")
-            if next_element is None:
-                raise AttributeError("Element '.next' not found")
-            next_page_number = next_element.a["href"].split("/")[-2]
-        except AttributeError:
-            time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            logging.info(f"{time} - 'Next' button not found")
-            break
+                # Adding quotes from a new page
+                all_quotes.extend(get_single_page_quotes(next_page_soup))
+
+                # next button searching
+                next_element = next_page_soup.select_one(".next")
+
     return all_quotes
 
 
