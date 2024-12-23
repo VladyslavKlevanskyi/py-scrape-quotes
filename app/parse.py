@@ -88,9 +88,15 @@ def get_all_pages_quotes() -> [Quote]:
                 time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 logging.info(f"{time} - Start parsing page #{next_page_number}")
 
-                next_page_url = urljoin(BASE_URL, f"/page/{next_page_number}/")
+                next_page_url = urljoin(
+                    BASE_URL,
+                    f"/page/{next_page_number}/"
+                )
                 next_page_text = requests.get(next_page_url).content
-                next_page_soup = BeautifulSoup(next_page_text, "html.parser")
+                next_page_soup = BeautifulSoup(
+                    next_page_text,
+                    "html.parser"
+                )
 
                 # Adding quotes from a new page
                 all_quotes.extend(get_single_page_quotes(next_page_soup))
