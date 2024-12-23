@@ -95,7 +95,7 @@ def get_all_pages_quotes() -> [Quote]:
             if next_element is None:
                 raise AttributeError("Element '.next' not found")
             next_page_number = next_element.a["href"].split("/")[-2]
-        except AttributeError as e:
+        except AttributeError:
             time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             logging.info(f"{time} - 'Next' button not found")
             break
@@ -118,8 +118,9 @@ def format_name(input_name: str) -> str:
     )
     # Replace spaces and dots with hyphens
     formatted_name = re.sub(
-            r"[.\s]+", "-", name_without_accents
-        ).replace("'", "").rstrip("-")
+        r"[.\s]+", "-",
+        name_without_accents
+    ).replace("'", "").rstrip("-")
     return formatted_name
 
 
