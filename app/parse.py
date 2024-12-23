@@ -86,7 +86,9 @@ def get_all_pages_quotes() -> [Quote]:
 
                 # logging
                 time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                logging.info(f"{time} - Start parsing page #{next_page_number}")
+                logging.info(
+                    f"{time} - Start parsing page #{next_page_number}"
+                )
 
                 next_page_url = urljoin(
                     BASE_URL,
